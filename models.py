@@ -22,7 +22,7 @@ class Product(Base):
     
     id : Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id : Mapped[int] = mapped_column(ForeignKey("users.id"))
-    product_name : Mapped[int] = mapped_column(String(100))
+    product_name : Mapped[str] = mapped_column(String(100))
     buying_price : Mapped[float] = mapped_column(Float)
     selling_price : Mapped[float] = mapped_column(Float)
     

@@ -7,7 +7,7 @@
 from flask import Flask, request, jsonify
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-from models import Base, Product
+from models import Base, Product, User
 
 
 app = Flask(__name__)
@@ -21,6 +21,22 @@ Base.metadata.create_all(engine)
 # Create a session to do sql transactions
 session = Session(engine)
 
+user = {"id" : "1",
+        "full_name" : "Levy",
+        "email" : "levy4star@gmail.com",
+        "password" : "levy1234"}
+
+@app.before_request
+def before_request():
+    try:
+        print("A request is coming")
+        new_user = User(user)
+        session.add(new_user)
+        session.commit()
+        return jsonify({"Message" : "User Added Successfully"}), 201
+    except:
+        print("Error found")
+        
 
 @app.route("/")
 def home():
@@ -32,7 +48,7 @@ def home():
         return jsonify(error), 403
     
     
-@app.route("/products")
+@app.route("/products", methods = ["GET", "POST"])
 def products():
     if request.method == "GET":
         # Fetch data from the database
@@ -55,7 +71,15 @@ def products():
             return jsonify(error), 403
         else:
             #Store in the database
-            pass
+            new_product = Product(
+                user_id = user["id"],
+                product_name = data["product_name"],
+                buying_price = float(data["buying_price"]),
+                selling_price = float(data["selling_price"])
+            )
+            session.add(new_product)
+            session.commit()
+            return jsonify({"Message" : "A New Product has been added succesfully"}), 201
     else:
         error = {"Error": "Method not allowed"}
         return jsonify(error), 405
