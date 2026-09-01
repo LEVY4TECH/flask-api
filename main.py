@@ -7,7 +7,7 @@
 from flask import Flask, request, jsonify
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-from models import Base, Product, User
+from models import Base, Product, User, Sale, SaleDetail, Payment, Purchase
 
 
 app = Flask(__name__)
@@ -36,6 +36,39 @@ def before_request():
         return jsonify({"Message" : "User Added Successfully"}), 201
     except:
         print("Error found")
+        
+product = {"id" : "1",
+           "user_id" : "1",
+           "product_name" : "Sugar",
+           "buying_price" : "120",
+           "selling_price" : "170"}
+
+@app.before_request
+def before_request():
+    try:
+        print("A request is coming")
+        new_product = Product(product)
+        session.add(new_product)
+        session.commit()
+        return jsonify({"Message" : "Product added succesfully"}), 201
+    except:
+        print("Error found")
+        
+sale = {"id" : "1",
+        "productID" : "1",
+        "quantity" : "100"}
+
+@app.before_request
+def before_request():
+    try:
+        print("A new request is coming")
+        new_sale = Sale(sale)
+        session.add(new_sale)
+        session.commit()
+        return jsonify({"Msssage" : "Sale has been made successfully"}), 201
+    except:
+        print("Error found")
+
         
 
 @app.route("/")
@@ -85,3 +118,97 @@ def products():
         return jsonify(error), 405
     
 app.run(debug=True)
+
+@app.route("/sales", methods = ["GET", "POST"])
+def sales():
+    if request.method == "GET":
+        query = select(Sale)
+        sales = session.scalars(query)
+        
+        results = []
+        for sale in sales:
+            s = {"id" : sale.id,
+                 
+                 "quantity" : sale.quantity}
+            results.append(s)
+        return jsonify(results), 200
+    elif request.method == "POST":
+        data = request.get_json()
+        if data["quantity"] == "":
+            error = {"error" : "Ensure all fields are set"}
+            return jsonify(error), 403
+        else:
+            new_sale = Sale(
+                productID = product["id"]
+                quantity = float(data["quantity"])
+            )
+            session.add(new_sale)
+            session.commit()
+            return jsonify({"Message" : "A new sale has been done successfully"}), 201
+    else:
+        error = {"Error" : "Method Not Alllowed"}
+        return jsonify(error), 405
+    
+@app.route("/sale_details", methods = ["GET", "POST"])
+def sale_details():
+    if request.method == "GET":
+        query = select(SaleDetail)
+        sale_details = session.scalars(query)
+        
+        results = []
+        for sale_detail in sale_details:
+            sd = {"id" : sale_detail.id,
+                  "quantity" : sale_detail.quantity,
+                  "selling_price" : sale_detail.quantity}
+            results.append(sd)
+        return jsonify(results), 200
+    elif request.method == "POST":
+        data = request.get_json()
+        if data["quantity"] == "" or data["selling_price"] == "" :
+            error = {"error" : "Ensure all fields are set"}
+            return jsonify(error), 403
+        else:
+            new_sale_detail = SaleDetail(
+                sale_id = sale["id"]
+                product_id = float(data["product_id"])
+            )
+            session.add(new_sale_detail)
+            session.commit()
+            return jsonify({"Message" : "A new sale detail has been added successfully"}), 201
+    else:
+        error = {"Error" : "Method Not Allowed"}
+        return jsonify(error), 405
+
+@app.route("/purchases", methods = ["GET", "POST"])
+def purchases():
+    if request.method == "GET":
+        query = select(Purchase)
+        purchases = session.scalars(query)
+        
+        results = []
+        for pur in purchases:
+            p = {"id" : pur.id,
+                 "quantity" : pur.quantity,
+                 "buying_price" : pur.buying_price}
+            results.append(p)
+        return jsonify(results), 200
+    elif request.method == "POST":
+        data = request.get_json()
+        if data["quantity"] == "" or data["buying_price"] == "":
+            error = {"Eror" : "Ensure all fields are set"}
+            return jsonify(error), 403
+        else:
+            new_purchase = Purchase(
+                product_id = product["id"]
+                quantity = float(data["quantity"])
+                buying_price = float(data["buying_price"])
+            )
+            session.add(new_purchase)
+            session.commit()
+            return jsonify({"Message" : "A new purchase has been made"}), 201
+    else:
+        error = {"Error" : "Method Not Allowed"}
+        return jsonify(error), 405
+        
+    
+    

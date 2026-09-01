@@ -26,7 +26,7 @@ class Product(Base):
     buying_price : Mapped[float] = mapped_column(Float)
     selling_price : Mapped[float] = mapped_column(Float)
     
-class Sales(Base):
+class Sale(Base):
     __tablename__ = "sales"
     
     id : Mapped[int] = mapped_column(Integer, primary_key=True)
