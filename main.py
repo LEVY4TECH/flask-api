@@ -139,7 +139,7 @@ def sales():
             return jsonify(error), 403
         else:
             new_sale = Sale(
-                productID = product["id"]
+                productID = product["id"],
                 quantity = float(data["quantity"])
             )
             session.add(new_sale)
@@ -169,7 +169,7 @@ def sale_details():
             return jsonify(error), 403
         else:
             new_sale_detail = SaleDetail(
-                sale_id = sale["id"]
+                sale_id = sale["id"],
                 product_id = float(data["product_id"])
             )
             session.add(new_sale_detail)
@@ -199,8 +199,8 @@ def purchases():
             return jsonify(error), 403
         else:
             new_purchase = Purchase(
-                product_id = product["id"]
-                quantity = float(data["quantity"])
+                product_id = product["id"],
+                quantity = float(data["quantity"]),
                 buying_price = float(data["buying_price"])
             )
             session.add(new_purchase)
@@ -209,6 +209,38 @@ def purchases():
     else:
         error = {"Error" : "Method Not Allowed"}
         return jsonify(error), 405
+    
+@app.route("/payments", methods = ["GET", "POST"])
+def payments():
+    if request.method == "GET":
+        query = select(Payment)
+        payments = session.scalars(query)
+        
+        results = []
+        for pay in payments:
+            pa = {"id" : pay.id,
+                  "amount" : pay.amount,
+                  "payment_method" : pay.payment_method}
+            results.append(pa)
+        return jsonify(results), 200
+    elif request.method == "POST":
+        data = request.get_json()
+        if data["amount"] == "" or data["payment_method"] == "" :
+            error = {"Error" : "Ensure all fields are set"}
+            return jsonify(error), 403
+        else:
+            new_payment = Payment(
+                sale_id = sale["id"],
+                amount = float(data["amount"]),
+                payment_method = data["payment_method"]
+            )
+            session.add(new_payment)
+            session.commit()
+            return jsonify({"Message" : "A new payment has been made"}), 201
+    else:
+        error = {"Error": "Method Not Allowed"}
+        return jsonify(error), 405
+    
         
     
     
