@@ -1,10 +1,12 @@
 from typing import Optional
 from sqlalchemy import ForeignKey
-from sqlalchemy import String, Integer, Float
+from sqlalchemy import String, Integer, Float, DateTime
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
+
+from datetime import datetime
 
 class Base(DeclarativeBase):
     pass
@@ -32,6 +34,8 @@ class Sale(Base):
     id : Mapped[int] = mapped_column(Integer, primary_key=True)
     productID : Mapped[int] = mapped_column(ForeignKey("products.id"))
     quantity : Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    
     
     
 class SaleDetail(Base):
@@ -42,6 +46,7 @@ class SaleDetail(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
     quantity: Mapped[int] = mapped_column(Integer)
     selling_price: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     
 class Purchase(Base):
     __tablename__ = "purchases"
@@ -50,6 +55,7 @@ class Purchase(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
     quantity: Mapped[int] = mapped_column(Integer)
     buying_price: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     
 class Payment(Base):
     __tablename__ = "payments"
@@ -58,3 +64,4 @@ class Payment(Base):
     sale_id: Mapped[int] = mapped_column(ForeignKey("sales.id"))
     amount: Mapped[float] = mapped_column(Float)
     payment_method: Mapped[str] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

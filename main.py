@@ -159,18 +159,20 @@ def sale_details():
         for sale_detail in sale_details:
             sd = {"id" : sale_detail.id,
                   "quantity" : sale_detail.quantity,
-                  "selling_price" : sale_detail.quantity}
+                  "selling_price" : sale_detail.quantity,
+                  "created_at" : sale_detail.created_at}
             results.append(sd)
         return jsonify(results), 200
     elif request.method == "POST":
         data = request.get_json()
-        if data["quantity"] == "" or data["selling_price"] == "" :
+        if data["quantity"] == "" or data["selling_price"] == "" or data["created_at"] == "":
             error = {"error" : "Ensure all fields are set"}
             return jsonify(error), 403
         else:
             new_sale_detail = SaleDetail(
                 sale_id = sale["id"],
-                product_id = float(data["product_id"])
+                product_id = float(data["product_id"]),
+                created_at = data["created_at"]
             )
             session.add(new_sale_detail)
             session.commit()
@@ -189,19 +191,21 @@ def purchases():
         for pur in purchases:
             p = {"id" : pur.id,
                  "quantity" : pur.quantity,
-                 "buying_price" : pur.buying_price}
+                 "buying_price" : pur.buying_price,
+                 "created_at" : pur.created_at}
             results.append(p)
         return jsonify(results), 200
     elif request.method == "POST":
         data = request.get_json()
-        if data["quantity"] == "" or data["buying_price"] == "":
+        if data["quantity"] == "" or data["buying_price"] == "" or data["created_at"] == "":
             error = {"Eror" : "Ensure all fields are set"}
             return jsonify(error), 403
         else:
             new_purchase = Purchase(
                 product_id = product["id"],
                 quantity = float(data["quantity"]),
-                buying_price = float(data["buying_price"])
+                buying_price = float(data["buying_price"]),
+                created_at = data["created_at"]
             )
             session.add(new_purchase)
             session.commit()
@@ -220,19 +224,21 @@ def payments():
         for pay in payments:
             pa = {"id" : pay.id,
                   "amount" : pay.amount,
-                  "payment_method" : pay.payment_method}
+                  "payment_method" : pay.payment_method,
+                  "created_at" : pay.created_at}
             results.append(pa)
         return jsonify(results), 200
     elif request.method == "POST":
         data = request.get_json()
-        if data["amount"] == "" or data["payment_method"] == "" :
+        if data["amount"] == "" or data["payment_method"] == "" or data["created_at"] == "":
             error = {"Error" : "Ensure all fields are set"}
             return jsonify(error), 403
         else:
             new_payment = Payment(
                 sale_id = sale["id"],
                 amount = float(data["amount"]),
-                payment_method = data["payment_method"]
+                payment_method = data["payment_method"],
+                created_at = data["created_at"]
             )
             session.add(new_payment)
             session.commit()
