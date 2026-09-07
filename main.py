@@ -134,7 +134,13 @@ def products():
 
 
 @app.route("/sales", methods = ["GET", "POST"])
+@jwt_required()
 def sales():
+    
+    id = get_jwt_identity()
+    
+    product = session.scalars(select(Product).where(Product.id==id)).first()
+    
     if request.method == "GET":
         query = select(Sale)
         sales = session.scalars(query)
