@@ -39,7 +39,7 @@ Base.metadata.create_all(engine)
 # Create a session to do sql transactions
 session = Session(engine)
 
-allowed_method = ["get", "post", "put", "delete", "patch", "head", "options"]
+allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
 
 @app.before_request
 def before_request():
@@ -48,7 +48,7 @@ def before_request():
     except:
         pass
         
-@app.route("/", methods = allowed_method)
+@app.route("/", methods = allowed_methods)
 def home():
     if request.method == "GET":
         data = {"Flask API" : "Version 1"}
@@ -56,116 +56,269 @@ def home():
     else:
         error = {"Error" : "Method not allowed"}
         return jsonify(error), 403
-
-@app.route("/register", methods = allowed_method)
-def register():
-
+    
+@app.route("/dashboard", methods = allowed_methods)
+def dashboard():
     if request.method == "GET":
-        pass
-    elif request.method == "POST":
-        data = request.get_json()
-        if data["full_name"] == "" or data["email"] == "" or data["password"] == "":
-            error = {"Error": "Ensure all fields are set"}
-            return jsonify(error), 403        
-        existing_user = session.query(User).filter_by(email = data["email"]).first()            
-        if existing_user :
-            error = {"Error": "Email already exists"}
-            return jsonify(error), 403             
-        else :
-            hashed_password = bcrypt.generate_password_hash(
-                data["password"]
-            ).decode("utf-8")
+        data = {"Flask API" : "Version 1"}
+        return jsonify(data), 200
+    else:
+        error = {"Error" : "Method not allowed"}
+        return jsonify(error), 403
+
+# REGISTER
+@app.route("/register", methods=allowed_methods)
+def register():
+    try:
+        if request.method == "GET":
+            query = select(User)
+            users = session.scalars(query)
+
+            results = []
+
+            for user in users:
+                u = {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "email": user.email
+                    
+                }
+                results.append(u)
+
+            return jsonify(results), 200
+
+        elif request.method == "POST":
+            data = request.get_json()
+
+            full_name = data["full_name"]
+            email = data["email"]
+            password = data["password"]
+           
+
+            if data["full_name"] == "" or data["email"] == "" or data["password"] == "":
+                return jsonify({
+                    "Error": "Ensure all fields are set"
+                }), 400
+
+            # Checking if email already exists
+            existing_user = session.query(User).filter_by(email=email).first()
+
+            if existing_user:
+                return jsonify({
+                    "Error": "Email is already registered"
+                }), 409
+
+            # Hash password
+            hashed_password = bcrypt.generate_password_hash(password)
+
+            # Create new user
             new_user = User(
-                full_name=data["full_name"],
-                email=data["email"],
-                password=hashed_password,
-                created_at = datetime.utcnow()
+                full_name=full_name,
+                email=email,
+                password=hashed_password.decode("utf-8")
+                
             )
+
             session.add(new_user)
             session.commit()
-            
-            token = create_access_token(identity=data["email"])
-            
-            return jsonify({"message": "User created succesfully", "token":token}), 201
-    else:
-        error = {"Error": "Method Not Allowed"}
-        return jsonify(error), 405 
+
+            access_token = create_access_token(identity=email)
+
+            return jsonify({
+                "id": new_user.id,
+                "Message": "User added successfully",
+                "access_token": access_token,
+                "url": "http://127.0.0.1:5000/login"
+            }), 201
+
+        else:
+            error = {"Error": "Method not allowed"}
+            return jsonify(error), 405
+
+    except Exception as error:
+        session.rollback()
+        return jsonify({"Error": str(error)}), 500
 
 
-@app.route("/login", methods = allowed_method)
+# @app.route("/login", methods = allowed_methods)
+# def login():
+#     if request.method == "GET":
+#         error = {"Error": "Method Not Allowed"}
+#         return jsonify(error), 405
+#     elif request.method == "POST":
+#         data = request.get_json()
+        
+#         email = data["email"]
+#         password = data["password"]
+        
+#         if data["email"] == "" or data["password"] == "":
+#             error = {"Error": "Ensure email and password are set"}
+#             return jsonify(error), 403
+        
+#         query = select(User).filter_by(email = data["email"])
+#         existing_user = session.scalars(query).first()
+        
+#         if not existing_user:
+#             error = {"Error" : "Invalid Email"}
+#             return jsonify(error), 403
+        
+#         if not bcrypt.check_password_hash(existing_user.password, password):
+#             error = {"Error" : "Invalid password"}
+#             return jsonify(error), 403
+        
+#         token = create_access_token(identity=email)
+#         return jsonify({"Message": "User logged in successfully", "token" : token}), 200
+#     else:
+#         error = {"Error": "Method Not Allowed"}
+#         return jsonify(error), 405
+
+# LOGIN
+@app.route("/login", methods=allowed_methods)
 def login():
-    if request.method == "GET":
-        error = {"Error": "Method Not Allowed"}
-        return jsonify(error), 405
-    elif request.method == "POST":
-        data = request.get_json()
-        
-        email = data["email"]
-        password = data["password"]
-        
-        if data["email"] == "" or data["password"] == "":
-            error = {"Error": "Ensure email and password are set"}
-            return jsonify(error), 403
-        
-        query = select(User).filter_by(email = data["email"])
-        existing_user = session.scalars(query).first()
-        
-        if not existing_user:
-            error = {"Error" : "Invalid Email"}
-            return jsonify(error), 403
-        
-        if not bcrypt.check_password_hash(existing_user.password, password):
-            error = {"Error" : "Invalid password"}
-            return jsonify(error), 403
-        
-        token = create_access_token(identity=email)
-        return jsonify({"Message": "User logged in successfully", "token" : token}), 200
-    else:
-        error = {"Error": "Method Not Allowed"}
-        return jsonify(error), 405
+    try:
+        if request.method == "GET":
+            return jsonify({
+                "Message": "Please enter your login details"
+            }), 200
+
+        elif request.method == "POST":
+            data = request.get_json()
+
+            email = data.get("email")
+            password = data.get("password")
+
+            if not email or not password:
+                return jsonify({
+                    "Error": "Ensure all fields are set"
+                }), 403
+
+            existing_user = session.query(User).filter_by(email=email).first()
+
+            if not existing_user:
+                return jsonify({
+                    "Error": "Invalid email or password"
+                }), 401
+
+            if not bcrypt.check_password_hash(
+                existing_user.password,
+                password
+            ):
+                return jsonify({
+                    "Error": "Invalid email or password"
+                }), 401
+
+            token = create_access_token(
+                identity=existing_user.email
+            )
+
+            return jsonify({
+                "id": existing_user.id,
+                "email": existing_user.email,
+                "full_name": existing_user.full_name,
+                "token": token,
+                "Message": "login successful"
+            }), 200
+
+        else:
+            return jsonify({
+                "error": "Method not allowed"
+            }), 405
+
+    except Exception as error:
+        return jsonify({
+            "Error": str(error)
+        }), 500
            
     
-@app.route("/products", methods = allowed_method)
+@app.route("/products", methods=allowed_methods)
 @jwt_required()
 def products():
+
     email = get_jwt_identity()
-    
-    user = session.scalars(select(User).where(User.email==email)).first()
+
+    user = session.scalars(
+        select(User).where(User.email == email)
+    ).first()
+
+    if not user:
+        return jsonify({
+            "Error": "User not found"
+        }), 404
+
     if request.method == "GET":
-        # Fetch data from the database
-        query = select(Product)
+
+        query = select(Product).where(
+            Product.user_id == user.id
+        )
+
         products = session.scalars(query)
-        
+
         results = []
+
         for prod in products:
-            p = {"id" : prod.id,
-                 "product_name" : prod.product_name,
-                 "buying_price" : prod.buying_price,
-                 "selling_price" : prod.selling_price}
+
+            p = {
+                "id": prod.id,
+                "product_name": prod.product_name,
+                "buying_price": prod.buying_price,
+                "selling_price": prod.selling_price
+            }
+
             results.append(p)
+
         return jsonify(results), 200
+
+
     elif request.method == "POST":
+
         data = request.get_json()
-        if data["product_name"] == "" or data["buying_price"] == "" or data["selling_price"] == "" :
-            error = {"error" : "Ensure all fields are set"}
-            return jsonify(error), 403
-        else:
-            #Store in the database
+
+        product_name = data.get("product_name")
+        buying_price = data.get("buying_price")
+        selling_price = data.get("selling_price")
+
+        if (
+            not product_name
+            or buying_price is None
+            or selling_price is None
+        ):
+            return jsonify({
+                "Error": "Ensure all fields are set"
+            }), 403
+
+        try:
+
             new_product = Product(
-                user_id = user["id"],
-                product_name = data["product_name"],
-                buying_price = float(data["buying_price"]),
-                selling_price = float(data["selling_price"])
+                user_id=user.id,
+                product_name=product_name,
+                buying_price=float(buying_price),
+                selling_price=float(selling_price)
             )
+
             session.add(new_product)
             session.commit()
-            return jsonify({"Message" : "A New Product has been added succesfully"}), 201
+
+            return jsonify({
+                "Message": "A new product has been added successfully"
+            }), 201
+
+        except Exception as error:
+
+            session.rollback()
+
+            return jsonify({
+                "Error": str(error)
+            }), 500
+
+
     else:
-        error = {"Error": "Method not allowed"}
-        return jsonify(error), 405
+
+        return jsonify({
+            "Error": "Method not allowed"
+        }), 405
     
 
-@app.route("/sales", methods = allowed_method)
+@app.route("/sales", methods = allowed_methods)
 @jwt_required()
 def sales():
     id = get_jwt_identity()
@@ -200,7 +353,7 @@ def sales():
         error = {"Error" : "Method Not Alllowed"}
         return jsonify(error), 405
     
-@app.route("/sale_details", methods = allowed_method)
+@app.route("/sale_details", methods = allowed_methods)
 @jwt_required()
 def sale_details():
     
@@ -240,7 +393,7 @@ def sale_details():
         error = {"Error" : "Method Not Allowed"}
         return jsonify(error), 405
 
-@app.route("/purchases", methods = allowed_method)
+@app.route("/purchases", methods = allowed_methods)
 @jwt_required()
 def purchases():
     
@@ -279,7 +432,7 @@ def purchases():
         error = {"Error" : "Method Not Allowed"}
         return jsonify(error), 405
     
-@app.route("/payments", methods = allowed_method)
+@app.route("/payments", methods = allowed_methods)
 @jwt_required()
 def payments():
     
