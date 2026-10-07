@@ -126,6 +126,8 @@ def register():
 
             return jsonify({
                 "id": new_user.id,
+                "full_name" : new_user.full_name,
+                "email" : new_user.email,
                 "Message": "User added successfully",
                 "access_token": access_token,
                 "url": "http://127.0.0.1:5000/login"
