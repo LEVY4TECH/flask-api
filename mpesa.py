@@ -16,6 +16,7 @@ saf_passkey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
 saf_stkpush_api = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
 my_callback_url = "https://ammonium-angelfish-uprising.ngrok-free.dev/saf-callback"
 
+
 def get_mpesa_access_token():
     try:
         res = requests.get(

@@ -13,6 +13,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from models import Base, Product, User, Sale, SaleDetail, Payment, Purchase
 from datetime import datetime
+from mpesa import make_stk_push
+from generate_receipts import create_pdf
 
 
 sentry_sdk.init(
@@ -232,10 +234,10 @@ def login():
         }), 500
            
     
-@app.route("/products", methods=allowed_methods)
+
+@app.route("/products", methods=["GET", "POST"])
 @jwt_required()
 def products():
-
     email = get_jwt_identity()
 
     user = session.scalars(
@@ -243,117 +245,203 @@ def products():
     ).first()
 
     if not user:
-        return jsonify({
-            "Error": "User not found"
-        }), 404
+        return jsonify({"Error": "User not found"}), 404
 
     if request.method == "GET":
+        product_list = session.scalars(
+            select(Product).where(Product.user_id == user.id)
+        ).all()
 
-        query = select(Product).where(
-            Product.user_id == user.id
+        results = [
+            {
+                "id": p.id,
+                "product_name": p.product_name,
+                "buying_price": p.buying_price,
+                "selling_price": p.selling_price,
+                "stock_quantity": p.stock_quantity
+            }
+            for p in product_list
+        ]
+
+        return jsonify(results), 200
+
+    data = request.get_json(silent=True) or {}
+
+    product_name = data.get("product_name")
+    buying_price = data.get("buying_price")
+    selling_price = data.get("selling_price")
+    stock_quantity = data.get("stock_quantity")
+
+    if (
+        not product_name
+        or buying_price is None
+        or selling_price is None
+        or stock_quantity is None
+    ):
+        return jsonify({
+            "Error": "Product name, buying price, selling price and stock quantity are required"
+        }), 400
+
+    try:
+        buying_price = float(buying_price)
+        selling_price = float(selling_price)
+        stock_quantity = int(stock_quantity)
+
+        if buying_price < 0 or selling_price < 0:
+            return jsonify({"Error": "Prices cannot be negative"}), 400
+
+        if stock_quantity < 0:
+            return jsonify({"Error": "Stock cannot be negative"}), 400
+
+        new_product = Product(
+            user_id=user.id,
+            product_name=product_name.strip(),
+            buying_price=buying_price,
+            selling_price=selling_price,
+            stock_quantity=stock_quantity
         )
 
-        products = session.scalars(query)
-
-        results = []
-
-        for prod in products:
-
-            p = {
-                "id": prod.id,
-                "product_name": prod.product_name,
-                "buying_price": prod.buying_price,
-                "selling_price": prod.selling_price
-            }
-
-            results.append(p)
-
-        return jsonify(results), 200
-
-
-    elif request.method == "POST":
-
-        data = request.get_json()
-
-        product_name = data.get("product_name")
-        buying_price = data.get("buying_price")
-        selling_price = data.get("selling_price")
-
-        if (
-            not product_name
-            or buying_price is None
-            or selling_price is None
-        ):
-            return jsonify({
-                "Error": "Ensure all fields are set"
-            }), 403
-
-        try:
-
-            new_product = Product(
-                user_id=user.id,
-                product_name=product_name,
-                buying_price=float(buying_price),
-                selling_price=float(selling_price)
-            )
-
-            session.add(new_product)
-            session.commit()
-
-            return jsonify({
-                "Message": "A new product has been added successfully"
-            }), 201
-
-        except Exception as error:
-
-            session.rollback()
-
-            return jsonify({
-                "Error": str(error)
-            }), 500
-
-
-    else:
+        session.add(new_product)
+        session.commit()
 
         return jsonify({
-            "Error": "Method not allowed"
-        }), 405
+            "Message": "A new product has been added successfully",
+            "product": {
+                "id": new_product.id,
+                "product_name": new_product.product_name,
+                "buying_price": new_product.buying_price,
+                "selling_price": new_product.selling_price,
+                "stock_quantity": new_product.stock_quantity
+            }
+        }), 201
+
+    except (ValueError, TypeError):
+        session.rollback()
+        return jsonify({
+            "Error": "Prices must be numeric and stock quantity must be a whole number"
+        }), 400
+
+    except Exception as error:
+        session.rollback()
+        print(f"Create product error: {error}")
+        return jsonify({"Error": "Failed to create product"}), 500
+
     
 
-@app.route("/sales", methods = allowed_methods)
+
+@app.route("/sales", methods=["GET", "POST"])
 @jwt_required()
 def sales():
-    id = get_jwt_identity()
-    product = session.scalars(select(Product).where(Product.id==id)).first()
-    
+    email = get_jwt_identity()
+
+    user = session.scalars(
+        select(User).where(User.email == email)
+    ).first()
+
+    if not user:
+        return jsonify({"Error": "User not found"}), 404
+
     if request.method == "GET":
-        query = select(Sale)
-        sales = session.scalars(query)
-        
-        results = []
-        for sale in sales:
-            s = {"id" : sale.id,
-                 "quantity" : sale.quantity,
-                 "created_at" : sale.created_at}
-            results.append(s)
+        sales_list = session.scalars(
+            select(Sale)
+            .where(Sale.user_id == user.id)
+            .order_by(Sale.created_at.desc())
+        ).all()
+
+        results = [
+            {
+                "id": sale.id,
+                "product_id": sale.product_id,
+                "quantity": sale.quantity,
+                "created_at": (
+                    sale.created_at.isoformat()
+                    if sale.created_at else None
+                )
+            }
+            for sale in sales_list
+        ]
+
         return jsonify(results), 200
-    elif request.method == "POST":
-        data = request.get_json()
-        if data["quantity"] == "" or data["created_at"] == "":
-            error = {"error" : "Ensure all fields are set"}
-            return jsonify(error), 403
-        else:
-            new_sale = Sale(
-                productID = product["id"],
-                quantity = float(data["quantity"]),
-                created_at = data["created_at"]
+
+    data = request.get_json(silent=True) or {}
+
+    product_id = data.get("product_id")
+    quantity = data.get("quantity")
+    created_at = data.get("created_at")
+
+    if product_id is None or quantity is None or not created_at:
+        return jsonify({
+            "Error": "Product, quantity and date are required"
+        }), 400
+
+    try:
+        product_id = int(product_id)
+        quantity = int(quantity)
+
+        if product_id < 1 or quantity < 1:
+            return jsonify({
+                "Error": "Product ID and quantity must be positive integers"
+            }), 400
+
+        sale_date = datetime.fromisoformat(
+            created_at.replace("Z", "+00:00")
+        )
+
+    except (ValueError, TypeError):
+        return jsonify({
+            "Error": "Invalid product ID, quantity or date"
+        }), 400
+
+    try:
+        # Lock the product row while checking and updating stock.
+        product = session.scalars(
+            select(Product)
+            .where(
+                Product.id == product_id,
+                Product.user_id == user.id
             )
-            session.add(new_sale)
-            session.commit()
-            return jsonify({"Message" : "A new sale has been done successfully"}), 201
-    else:
-        error = {"Error" : "Method Not Alllowed"}
-        return jsonify(error), 405
+            .with_for_update()
+        ).first()
+
+        if not product:
+            session.rollback()
+            return jsonify({"Error": "Product not found"}), 404
+
+        if quantity > product.stock_quantity:
+            session.rollback()
+            return jsonify({
+                "Error": "Insufficient stock",
+                "available_stock": product.stock_quantity
+            }), 400
+
+        product.stock_quantity -= quantity
+
+        new_sale = Sale(
+            user_id=user.id,
+            product_id=product.id,
+            quantity=quantity,
+            created_at=sale_date
+        )
+
+        session.add(new_sale)
+        session.commit()
+
+        return jsonify({
+            "Message": "Sale recorded successfully",
+            "sale": {
+                "id": new_sale.id,
+                "product_id": new_sale.product_id,
+                "quantity": new_sale.quantity,
+                "created_at": new_sale.created_at.isoformat()
+            },
+            "remaining_stock": product.stock_quantity
+        }), 201
+
+    except Exception as error:
+        session.rollback()
+        print(f"Create sale error: {error}")
+        return jsonify({"Error": "Failed to record sale"}), 500
+
     
 @app.route("/sale_details", methods = allowed_methods)
 @jwt_required()
@@ -472,7 +560,74 @@ def payments():
     else:
         error = {"Error": "Method Not Allowed"}
         return jsonify(error), 405
+
+@app.route("/stk_push", methods = ["POST"])    
+def stk_push():
+    try:
+        payload = request.get_json()
+
+        if not payload:
+            return {"message": "Request body must contain JSON"}, 400
+        
+        response = make_stk_push(payload)
+        new_payment = Payment(sale_id=payload["sale_id"],
+                             amount=payload["amount"],
+                             phone_number=payload["phone_number"],
+                             mrid=response.get("MerchantRequestID"),
+                             crid=response.get("CheckoutRequestID"),
+                             status="pending")
+        session.add(new_payment)
+        session.commit()
+        return("stk push initiated")
     
+    except Exception as e:
+        print("stk push error")
+        return {"message":"stk push failed"}
+
+    
+
+@app.route("/saf-callback", methods=["POST"])
+def saf_callback():
+    body = request.get_json()
+    try:
+        stkCallback = body.get("Body", {}).get("stkCallback", {})
+        result_code = stkCallback.get("ResultCode")
+        mrid = stkCallback.get("MerchantRequestID")
+        crid = stkCallback.get("CheckoutRequestID")
+
+        payment = session.execute(
+            select(Payment).where(Payment.mrid == mrid, Payment.crid == crid)
+        ).scalars().first()
+
+        if payment:
+            if result_code == 0:
+                callback_metadata = stkCallback.get("CallbackMetadata", {}).get("Item", [])
+                for item in callback_metadata:
+                    if item.get("Name") == "MpesaReceiptNumber":
+                        payment.transaction_code = item.get("Value")
+                payment.status = "completed"
+            else:
+                payment.status = "failed"
+
+            # Commit payment status FIRST - this is critical
+            session.commit()
+            
+            text=f"Transaction Code {payment.transaction_code}, Amount: {payment.amount}, Date : {payment.created_at} "
+            create_pdf(text,payment.transaction_code)
+
+    except Exception as e:
+        print("Error Processing Callback:", e)
+        session.rollback()
+
+    return {"message": "callback received"}
+    
+
+
+
+
+
+
+
 
     
 
