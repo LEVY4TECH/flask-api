@@ -1,4 +1,5 @@
 from fpdf import FPDF
+from cloudinary_service import upload_pdf
 
 pdf = FPDF()
 
@@ -8,5 +9,8 @@ def create_pdf(payment_data, transaction_code):
     pdf.multi_cell(200, 10, txt=payment_data, align="C")
     pdf.output(f"receipts/{transaction_code}.pdf")
     
-# create_pdf("Transaction Code : USD4G7FGD, Amount : 1, Date : 15/10/2026", "USD4G7FGD")
+    print("this is create pdf.......")
+    # uploading pdf to cloudinary
+
+    upload_pdf(transaction_code)
     

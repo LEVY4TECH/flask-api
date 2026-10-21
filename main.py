@@ -618,6 +618,8 @@ def saf_callback():
     except Exception as e:
         print("Error Processing Callback:", e)
         session.rollback()
+        
+    
 
     return {"message": "callback received"}
     
