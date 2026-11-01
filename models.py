@@ -35,16 +35,24 @@ class Product(Base):
     )
      
 
+# class Sale(Base):
+#     __tablename__ = "sales"
+
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+#     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+#     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+#     quantity: Mapped[int] = mapped_column(Integer)
+#     created_at: Mapped[datetime] = mapped_column(
+#         DateTime, default=datetime.now
+    # )
+    
 class Sale(Base):
     __tablename__ = "sales"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
-    quantity: Mapped[int] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.now
-    )
+    
+    id : Mapped[int] = mapped_column(Integer, primary_key=True)
+    product_id : Mapped[int] = mapped_column(ForeignKey("products.id"))
+    amount : Mapped[float] = mapped_column(Float)
+    sale_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     
     
@@ -68,18 +76,17 @@ class Purchase(Base):
     buying_price: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     
-class Payment(Base, TimestampMixin):
+class Payment(Base):
     __tablename__ = "payments"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    sale_id: Mapped[int] = mapped_column(ForeignKey("sales.id"))
+    id : Mapped[int] = mapped_column(Integer, primary_key=True)
+    sales_id : Mapped[int] = mapped_column(ForeignKey("sales.id"))
     amount: Mapped[float] = mapped_column(Float)
-    # payment_method: Mapped[str] = mapped_column(String(50))
-    transaction_code: Mapped[str] = mapped_column(String, nullable=True, default=None)
-    mrid: Mapped[str] = mapped_column(String)
-    crid: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String, default='pending')
+    transaction_code:Mapped[str] = mapped_column(String, nullable=True)
+    mrid:Mapped[str] = mapped_column(String)
+    crid:Mapped[str] = mapped_column(String)
+    payment_status: Mapped[str] = mapped_column(String, default="pending", nullable=True)
     phone_number: Mapped[str] = mapped_column(String)
-    # created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    payment_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     
 

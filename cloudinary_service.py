@@ -1,5 +1,6 @@
 import cloudinary
 import cloudinary.uploader
+from send_email import email
 
 cloud_name = 'nxm4cewr'
 api_key = '485395155977232'

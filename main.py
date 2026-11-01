@@ -329,118 +329,243 @@ def products():
     
 
 
-@app.route("/sales", methods=["GET", "POST"])
+# @app.route("/sales", methods=["GET", "POST"])
+# @jwt_required()
+# def sales():
+#     email = get_jwt_identity()
+
+#     user = session.scalars(
+#         select(User).where(User.email == email)
+#     ).first()
+
+#     if not user:
+#         return jsonify({"Error": "User not found"}), 404
+
+#     if request.method == "GET":
+#         sales_list = session.scalars(
+#             select(Sale)
+#             .where(Sale.user_id == user.id)
+#             .order_by(Sale.created_at.desc())
+#         ).all()
+
+#         results = [
+#             {
+#                 "id": sale.id,
+#                 "product_id": sale.product_id,
+#                 "product" : {
+#                     "id" : ,
+#                     "sale.product_id" : ,
+#                     "amount" : 
+#                 }
+#                 "quantity": sale.quantity,
+#                 "created_at": (
+#                     sale.created_at.isoformat()
+#                     if sale.created_at else None
+#                 )
+#             }
+#             for sale in sales_list
+#         ]
+
+#         return jsonify(results), 200
+
+#     data = request.get_json(silent=True) or {}
+
+#     product_id = data.get("product_id")
+#     quantity = data.get("quantity")
+#     created_at = data.get("created_at")
+
+#     if product_id is None or quantity is None or not created_at:
+#         return jsonify({
+#             "Error": "Product, quantity and date are required"
+#         }), 400
+
+#     try:
+#         product_id = int(product_id)
+#         quantity = int(quantity)
+
+#         if product_id < 1 or quantity < 1:
+#             return jsonify({
+#                 "Error": "Product ID and quantity must be positive integers"
+#             }), 400
+
+#         sale_date = datetime.fromisoformat(
+#             created_at.replace("Z", "+00:00")
+#         )
+
+#     except (ValueError, TypeError):
+#         return jsonify({
+#             "Error": "Invalid product ID, quantity or date"
+#         }), 400
+
+#     try:
+#         # Lock the product row while checking and updating stock.
+#         product = session.scalars(
+#             select(Product)
+#             .where(
+#                 Product.id == product_id,
+#                 Product.user_id == user.id
+#             )
+#             .with_for_update()
+#         ).first()
+
+#         if not product:
+#             session.rollback()
+#             return jsonify({"Error": "Product not found"}), 404
+
+#         if quantity > product.stock_quantity:
+#             session.rollback()
+#             return jsonify({
+#                 "Error": "Insufficient stock",
+#                 "available_stock": product.stock_quantity
+#             }), 400
+
+#         product.stock_quantity -= quantity
+
+#         new_sale = Sale(
+#             user_id=user.id,
+#             product_id=product.id,
+#             quantity=quantity,
+#             created_at=sale_date
+#         )
+
+#         session.add(new_sale)
+#         session.commit()
+
+#         return jsonify({
+#             "Message": "Sale recorded successfully",
+#             "sale": {
+#                 "id": new_sale.id,
+#                 "product_id": new_sale.product_id,
+#                 "quantity": new_sale.quantity,
+#                 "created_at": new_sale.created_at.isoformat()
+#             },
+#             "remaining_stock": product.stock_quantity
+#         }), 201
+
+#     except Exception as error:
+#         session.rollback()
+#         print(f"Create sale error: {error}")
+#         return jsonify({"Error": "Failed to record sale"}), 500
+    
+    
+# RUTH CODE
+# @app.route("/sales", methods=["GET", "POST"])
+# @jwt_required()
+# def sales():
+#     if request.method == "GET":
+#         query = select(Sale)
+#         all_sales = session.scalars(query)
+
+#         results = []
+#         for sale in all_sales:
+#             product = session.get(Product, sale.product_id)
+#             s = {
+#                 "id": sale.id,
+                
+#                 "product_name": product.product_name if product else "Unknown",
+#                 "quantity": sale.quantity,
+#                 "created_at": (
+#                     sale.created_at.isoformat()
+#                     if sale.created_at else None
+#                 )
+                
+#             }
+#             results.append(s)
+#         return jsonify(results), 200
+
+#     elif request.method == "POST":
+#         data = request.get_json()
+#         if data["product_name"] == "" or data["quantity"] == "" or data["created_at"] == "":
+#             error = {"error": "Ensure all fields are set"}
+#             return jsonify(error), 403
+
+#         new_sale = Sale(
+#             product_id=data["product_name"],
+#             quantity=float(data["quantity"]),
+            
+#             created_at=data["created_at"]
+#         )
+#         session.add(new_sale)
+#         session.commit()
+#         return jsonify({"message": "A new sale has been recorded successfully"}), 201
+
+#     else:
+#         error = {"Error": "Method Not Allowed"}
+#         return jsonify(error), 405
+    
+# BINTIS CODE
+@app.route("/sales", methods=allowed_methods)
 @jwt_required()
 def sales():
-    email = get_jwt_identity()
-
-    user = session.scalars(
-        select(User).where(User.email == email)
-    ).first()
-
-    if not user:
-        return jsonify({"Error": "User not found"}), 404
-
-    if request.method == "GET":
-        sales_list = session.scalars(
-            select(Sale)
-            .where(Sale.user_id == user.id)
-            .order_by(Sale.created_at.desc())
-        ).all()
-
-        results = [
-            {
-                "id": sale.id,
-                "product_id": sale.product_id,
-                "quantity": sale.quantity,
-                "created_at": (
-                    sale.created_at.isoformat()
-                    if sale.created_at else None
-                )
-            }
-            for sale in sales_list
-        ]
-
-        return jsonify(results), 200
-
-    data = request.get_json(silent=True) or {}
-
-    product_id = data.get("product_id")
-    quantity = data.get("quantity")
-    created_at = data.get("created_at")
-
-    if product_id is None or quantity is None or not created_at:
-        return jsonify({
-            "Error": "Product, quantity and date are required"
-        }), 400
-
     try:
-        product_id = int(product_id)
-        quantity = int(quantity)
+        email = get_jwt_identity()
 
-        if product_id < 1 or quantity < 1:
-            return jsonify({
-                "Error": "Product ID and quantity must be positive integers"
-            }), 400
-
-        sale_date = datetime.fromisoformat(
-            created_at.replace("Z", "+00:00")
-        )
-
-    except (ValueError, TypeError):
-        return jsonify({
-            "Error": "Invalid product ID, quantity or date"
-        }), 400
-
-    try:
-        # Lock the product row while checking and updating stock.
-        product = session.scalars(
-            select(Product)
-            .where(
-                Product.id == product_id,
-                Product.user_id == user.id
-            )
-            .with_for_update()
+        user = session.scalars(
+            select(User).where(User.email == email)
         ).first()
 
-        if not product:
-            session.rollback()
-            return jsonify({"Error": "Product not found"}), 404
+        if request.method == "GET":
+            query = select(Sale)
+            sales = session.scalars(query)
 
-        if quantity > product.stock_quantity:
-            session.rollback()
-            return jsonify({
-                "Error": "Insufficient stock",
-                "available_stock": product.stock_quantity
-            }), 400
+            sales_list = []
 
-        product.stock_quantity -= quantity
+            for sale in sales:
+                payment = session.scalars(
+                    select(Payment)
+                    .where(Payment.sales_id == sale.id)
+                    .order_by(Payment.payment_date.desc())
+                ).first()
 
-        new_sale = Sale(
-            user_id=user.id,
-            product_id=product.id,
-            quantity=quantity,
-            created_at=sale_date
-        )
+                sal = {
+                    "id": sale.id,
+                    "product_name": session.get(Product, sale.product_id).product_name,
+                    "amount": sale.amount,
+                    "sale_date": sale.sale_date,
+                    "payment": {
+                        "transaction_code": payment.transaction_code,
+                        "amount": payment.amount,
+                        "phone_number": payment.phone_number,
+                        "status": payment.payment_status
+                    } if payment else None
+                }
 
-        session.add(new_sale)
-        session.commit()
+                sales_list.append(sal)
 
-        return jsonify({
-            "Message": "Sale recorded successfully",
-            "sale": {
-                "id": new_sale.id,
-                "product_id": new_sale.product_id,
-                "quantity": new_sale.quantity,
-                "created_at": new_sale.created_at.isoformat()
-            },
-            "remaining_stock": product.stock_quantity
-        }), 201
+            return jsonify(sales_list), 200
 
-    except Exception as error:
-        session.rollback()
-        print(f"Create sale error: {error}")
-        return jsonify({"Error": "Failed to record sale"}), 500
+        elif request.method == "POST":
+            data = request.get_json()
+
+            if not data.get("product_name") or not data.get("amount"):
+                error = {"Error": "Ensure all fields are set"}
+                return jsonify(error), 403
+            else:
+                new_sale = Sale(
+                    product_id=data["product_name"],
+                    amount=float(data["amount"])
+                )
+                session.add(new_sale)
+                session.commit()
+
+            message = {"Message": "Sales added successfully"}
+            return jsonify(message), 201
+
+        else:
+            error = {"Error": "Method not allowed"}
+            return jsonify(error), 405
+    
+    except Exception as e:
+        import traceback
+        print("SALES ERROR:")
+        traceback.print_exc()
+        sentry_sdk.capture_exception(e)
+        return jsonify({"error": str(e)}), 500
+
+    # except Exception as e:
+    #     print("SALES ERROR:", str(e))
+    #     sentry_sdk.capture_exception(e)
+    #     return jsonify({"error": "Something went wrong"}), 500
 
     
 @app.route("/sale_details", methods = allowed_methods)
@@ -570,19 +695,20 @@ def stk_push():
             return {"message": "Request body must contain JSON"}, 400
         
         response = make_stk_push(payload)
-        new_payment = Payment(sale_id=payload["sale_id"],
+        new_payment = Payment(sale_id=payload["sales_id"],
                              amount=payload["amount"],
                              phone_number=payload["phone_number"],
                              mrid=response.get("MerchantRequestID"),
                              crid=response.get("CheckoutRequestID"),
-                             status="pending")
+                             Payment_status="pending")
         session.add(new_payment)
         session.commit()
-        return("stk push initiated")
+        return{"message": "STK push initiated successfully"}, 200
     
     except Exception as e:
-        print("stk push error")
-        return {"message":"stk push failed"}
+        session.rollback()
+        print("stk push error:", str(e))
+        return {"message" : "stk push failed"}, 500
 
     
 
@@ -605,14 +731,14 @@ def saf_callback():
                 for item in callback_metadata:
                     if item.get("Name") == "MpesaReceiptNumber":
                         payment.transaction_code = item.get("Value")
-                payment.status = "completed"
+                payment.payment_status = "completed"
             else:
-                payment.status = "failed"
+                payment.payment_status = "failed"
 
             # Commit payment status FIRST - this is critical
             session.commit()
             
-            text=f"Transaction Code {payment.transaction_code}, Amount: {payment.amount}, Date : {payment.created_at} "
+            text=f"Transaction Code {payment.transaction_code}, Amount: {payment.amount}, Date : {payment.payment_date} "
             create_pdf(text,payment.transaction_code)
 
     except Exception as e:
