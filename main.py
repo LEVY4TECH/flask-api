@@ -695,12 +695,12 @@ def stk_push():
             return {"message": "Request body must contain JSON"}, 400
         
         response = make_stk_push(payload)
-        new_payment = Payment(sale_id=payload["sales_id"],
+        new_payment = Payment(sales_id=payload["sales_id"],
                              amount=payload["amount"],
                              phone_number=payload["phone_number"],
                              mrid=response.get("MerchantRequestID"),
                              crid=response.get("CheckoutRequestID"),
-                             Payment_status="pending")
+                             payment_status="pending")
         session.add(new_payment)
         session.commit()
         return{"message": "STK push initiated successfully"}, 200
